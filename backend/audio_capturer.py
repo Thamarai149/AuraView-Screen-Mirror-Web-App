@@ -18,7 +18,7 @@ class AudioCapturer:
         self.channels = channels
         self.is_running = False
         self._lock = threading.Lock()
-        self.buffer_queue = deque(maxlen=60)
+        self.buffer_queue = deque(maxlen=8)
         self.worker_thread = None
 
         if HAS_SOUNDCARD:
@@ -92,10 +92,13 @@ class AudioCapturer:
                 time.sleep(0.5)
 
     def capture_pcm_chunk(self) -> bytes:
-        """Pops accumulated PCM bytes from ring buffer for smooth non-blocking streaming."""
+        """Pops accumulated PCM bytes from ring buffer, dropping stale chunks for zero latency."""
         with self._lock:
             if not self.buffer_queue:
                 return b''
+            # If queue accumulated stale chunks, drop all except latest 2
+            while len(self.buffer_queue) > 2:
+                self.buffer_queue.popleft()
             chunks = []
             while self.buffer_queue:
                 chunks.append(self.buffer_queue.popleft())

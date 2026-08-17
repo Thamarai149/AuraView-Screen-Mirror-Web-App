@@ -221,11 +221,12 @@ export default function App() {
       source.buffer = audioBuffer;
       source.connect(ctx.destination);
 
-      const BUFFER_DELAY = 0.08; // 80ms jitter buffer for smooth continuous playback
+      const MIN_LATENCY = 0.02; // 20ms target live latency
+      const MAX_LATENCY = 0.08; // 80ms max latency ceiling (drops buffering immediately)
       let startTime = nextAudioStartTimeRef.current;
 
-      if (startTime < ctx.currentTime || startTime > ctx.currentTime + 0.35) {
-        startTime = ctx.currentTime + BUFFER_DELAY;
+      if (startTime < ctx.currentTime + MIN_LATENCY || startTime > ctx.currentTime + MAX_LATENCY) {
+        startTime = ctx.currentTime + MIN_LATENCY;
       }
 
       source.start(startTime);
