@@ -141,7 +141,7 @@ npm run dev -- --host 0.0.0.0
 
 To silence PC speakers and route all audio only to mobile:
 
-Stream Control -> Mute PC Sound -> PC Sound Enable (Uncheck) -> Enable Audio Button (Check)
+Mute PC Sound -> Go To Stream Control -> Enable PC Sound 
 
 ## 📡 API Reference
 
