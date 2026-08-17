@@ -140,17 +140,7 @@ npm run dev -- --host 0.0.0.0
 ## 🔊 PC Audio on Mobile (Mute PC, Hear on Phone)
 
 To silence PC speakers and route all audio only to mobile:
-
-1. Click the Volume icon in Windows Taskbar
-2. Click the `>` arrow next to the volume slider
-3. Select **CABLE Input (VB-Audio Virtual Cable)** *(if installed)*
-   - Or select your **Bluetooth device** if paired
-
-Then in the mobile browser app, click **"Enable Audio"**.
-
-> VB-Audio Virtual Cable (free): https://vb-audio.com/Cable/
-
----
+Stream Control -> Mute PC Sound -> PC Sound Enable (Uncheck) -> Enable Audio Button (Check)
 
 ## 📡 API Reference
 
