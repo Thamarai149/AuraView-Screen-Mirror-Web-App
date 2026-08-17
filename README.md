@@ -1,4 +1,4 @@
-﻿# ⚡ AuraView — Real-Time Screen Mirroring & Audio Streaming
+# ⚡ AuraView — Real-Time Screen Mirroring & Audio Streaming
 
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=for-the-badge&logo=fastapi&logoColor=white) ![React](https://img.shields.io/badge/React-18+-61DAFB?style=for-the-badge&logo=react&logoColor=black) ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 
@@ -137,13 +137,23 @@ npm run dev -- --host 0.0.0.0
 
 ---
 
-## 🔊 PC Audio on Mobile (Mute PC, Hear on Phone)
+## 🔊 PC Audio on Mobile (Mute PC Speakers & Hear Audio on Phone)
 
-To silence PC speakers and route all audio only to mobile:
+To mute your physical PC speakers while still listening to computer audio in real-time on your mobile device:
 
-1. PC Volume Slider (Set to 0)
-2. Uncheck PC Sound in Stream Control 
-3. Check PC Sound in Stream Control
+### Option 1: Direct Loopback Stream (Recommended)
+1. Lower your PC physical speaker volume to **0** (or mute physical speakers).
+2. In the mobile browser app, tap **"Enable Audio"** or toggle **PC Sound** in Stream Controls.
+3. The built-in WASAPI loopback capturer streams PC system audio directly to your mobile browser, so you can hear movies, games, and music privately on your phone!
+
+### Option 2: Using Virtual Audio Cable or Bluetooth
+1. Click the **Volume icon** on the Windows Taskbar and select the **`>`** arrow next to the volume slider.
+2. Choose **CABLE Input (VB-Audio Virtual Cable)** or your paired **Bluetooth device**.
+3. In the mobile app, make sure **PC Sound** is enabled.
+
+> 💡 *Free Virtual Cable driver available at: [https://vb-audio.com/Cable/](https://vb-audio.com/Cable/)*
+
+---
 
 ## 📡 API Reference
 
