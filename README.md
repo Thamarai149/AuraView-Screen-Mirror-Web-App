@@ -143,7 +143,7 @@ To silence PC speakers and route all audio only to mobile:
 
 1. PC Volume Slider (Set to 0)
 2. Uncheck PC Sound in Stream Control 
-3.Check PC Sound in Stream Control
+3. Check PC Sound in Stream Control
 
 ## 📡 API Reference
 
