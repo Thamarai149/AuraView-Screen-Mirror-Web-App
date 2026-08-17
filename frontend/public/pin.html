@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security PIN Generator - Screen Mirroring</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #030712;
+      color: #f3f4f6;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .glass-card {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(51, 65, 85, 0.6);
+    }
+    .glow-effect {
+      box-shadow: 0 0 40px -10px rgba(6, 182, 212, 0.4);
+    }
+  </style>
+</head>
+<body className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-950">
+
+  <!-- Background decorative elements -->
+  <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-600/15 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="absolute bottom-1/4 left-1/3 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+  <div class="w-full max-w-md glass-card rounded-3xl p-8 shadow-2xl relative z-10 space-y-6 glow-effect border border-slate-800">
+    
+    <!-- Top indicator line -->
+    <div class="w-24 h-1.5 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full mx-auto"></div>
+
+    <!-- Header -->
+    <div class="text-center space-y-2">
+      <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center mx-auto text-cyan-400 mb-3 shadow-lg shadow-cyan-500/20">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+      </div>
+      <h1 class="text-2xl font-extrabold text-white tracking-tight">Security PIN Generator</h1>
+      <p class="text-xs text-slate-400">Dynamic authentication key for mobile screen streaming pairing</p>
+    </div>
+
+    <!-- PIN Box Display -->
+    <div class="bg-slate-900/90 rounded-2xl p-6 border border-cyan-500/40 text-center space-y-2 shadow-inner">
+      <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block">ACTIVE PIN CODE</span>
+      
+      <div id="pin-display" class="font-mono text-5xl font-extrabold text-cyan-300 tracking-widest py-2 drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]">
+        ----
+      </div>
+      
+      <div class="flex items-center justify-center space-x-2 text-[11px] text-emerald-400">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="status-text">Server Active & Syncing</span>
+      </div>
+    </div>
+
+    <!-- Host & Mobile Network Info -->
+    <div class="bg-slate-900/50 rounded-xl p-3.5 border border-slate-800 space-y-1.5 text-xs text-slate-300">
+      <div class="flex justify-between items-center">
+        <span class="text-slate-400">Host IP:</span>
+        <span id="host-ip" class="font-mono font-bold text-cyan-400">127.0.0.1</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-slate-400">Mobile Pair URL:</span>
+        <span id="mobile-url" class="font-mono text-slate-300">http://127.0.0.1:5173</span>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="space-y-3 pt-1">
+      <button 
+        id="btn-refresh"
+        onclick="refreshPin()"
+        class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold flex items-center justify-center space-x-2 shadow-lg shadow-cyan-500/25 transition-all active:scale-[0.98] cursor-pointer"
+      >
+        <svg id="refresh-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        <span>Generate New PIN</span>
+      </button>
+
+      <div class="flex space-x-2">
+        <button 
+          onclick="copyPin()"
+          class="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold flex items-center justify-center space-x-1.5 transition cursor-pointer"
+        >
+          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          </svg>
+          <span id="copy-btn-text">Copy PIN</span>
+        </button>
+
+        <a 
+          href="/"
+          class="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold flex items-center justify-center space-x-1.5 transition text-center cursor-pointer"
+        >
+          <span>Open Main App</span>
+          <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer note -->
+    <p class="text-[11px] text-center text-slate-500 pt-2 border-t border-slate-900">
+      Screen Mirror Security System • Dynamic PIN Protection
+    </p>
+
+  </div>
+
+  <script>
+    const API_BASE = `http://${window.location.hostname}:8000/api`;
+    let currentPinValue = '';
+
+    async function fetchPinInfo() {
+      try {
+        const res = await fetch(`${API_BASE}/pin-info`);
+        const data = await res.json();
+        if (data.status === 'success') {
+          currentPinValue = data.pin;
+          document.getElementById('pin-display').innerText = data.pin;
+          const hostIp = data.host_ip || window.location.hostname;
+          document.getElementById('host-ip').innerText = hostIp;
+          document.getElementById('mobile-url').innerText = `http://${hostIp}:5173`;
+        }
+      } catch (err) {
+        console.warn('Backend API connection error:', err);
+        document.getElementById('status-text').innerText = 'Backend connection issue';
+        document.getElementById('status-text').className = 'text-rose-400';
+      }
+    }
+
+    async function refreshPin() {
+      const btn = document.getElementById('btn-refresh');
+      const icon = document.getElementById('refresh-icon');
+      btn.disabled = true;
+      icon.classList.add('animate-spin');
+
+      try {
+        const res = await fetch(`${API_BASE}/refresh-pin`, { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'success') {
+          currentPinValue = data.new_pin;
+          document.getElementById('pin-display').innerText = data.new_pin;
+        }
+      } catch (err) {
+        alert('Failed to refresh PIN code: ' + err.message);
+      } finally {
+        setTimeout(() => {
+          btn.disabled = false;
+          icon.classList.remove('animate-spin');
+        }, 300);
+      }
+    }
+
+    function copyPin() {
+      if (!currentPinValue) return;
+      navigator.clipboard.writeText(currentPinValue);
+      const copyText = document.getElementById('copy-btn-text');
+      copyText.innerText = 'Copied!';
+      setTimeout(() => {
+        copyText.innerText = 'Copy PIN';
+      }, 2000);
+    }
+
+    // Initial load & 5s interval polling
+    fetchPinInfo();
+    setInterval(fetchPinInfo, 5000);
+  </script>
+</body>
+</html>

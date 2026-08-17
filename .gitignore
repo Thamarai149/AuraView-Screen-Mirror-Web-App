@@ -1,0 +1,34 @@
+﻿# Python
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.env
+.env
+.env.local
+.env.production
+
+# VS Code
+.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
