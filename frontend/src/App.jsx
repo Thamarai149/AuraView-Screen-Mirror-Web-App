@@ -185,7 +185,7 @@ export default function App() {
     if (audioCtx.state === 'suspended') {
       audioCtx.resume();
     }
-    nextAudioStartTimeRef.current = audioCtx.currentTime;
+    nextAudioStartTimeRef.current = 0;
 
     const audioWs = new WebSocket(BACKEND_AUDIO_WS_URL);
     audioWs.binaryType = 'arraybuffer';
@@ -221,9 +221,11 @@ export default function App() {
       source.buffer = audioBuffer;
       source.connect(ctx.destination);
 
+      const BUFFER_DELAY = 0.08; // 80ms jitter buffer for smooth continuous playback
       let startTime = nextAudioStartTimeRef.current;
-      if (startTime < ctx.currentTime || startTime > ctx.currentTime + 0.3) {
-        startTime = ctx.currentTime + 0.05;
+
+      if (startTime < ctx.currentTime || startTime > ctx.currentTime + 0.35) {
+        startTime = ctx.currentTime + BUFFER_DELAY;
       }
 
       source.start(startTime);

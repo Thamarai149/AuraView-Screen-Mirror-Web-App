@@ -72,6 +72,15 @@ class AudioCapturer:
                 with mic.recorder(samplerate=self.sample_rate) as recorder:
                     while self.is_running:
                         data_float = recorder.record(numframes=chunk_frames)
+                        
+                        # Guarantee 2-channel stereo shape (numframes, 2)
+                        if data_float.ndim == 1:
+                            data_float = np.column_stack((data_float, data_float))
+                        elif data_float.shape[1] == 1:
+                            data_float = np.repeat(data_float, 2, axis=1)
+                        elif data_float.shape[1] > 2:
+                            data_float = data_float[:, :2]
+
                         # Convert float32 [-1.0, 1.0] to int16 [-32768, 32767]
                         data_int16 = (np.clip(data_float, -1.0, 1.0) * 32767).astype(np.int16)
                         raw_bytes = data_int16.tobytes()
@@ -82,7 +91,7 @@ class AudioCapturer:
                 logger.warning(f"Audio stream error or output device changed ({e}). Re-detecting default output...")
                 time.sleep(0.5)
 
-    def capture_pcm_chunk(self, num_frames: int = 2048) -> bytes:
+    def capture_pcm_chunk(self) -> bytes:
         """Pops accumulated PCM bytes from ring buffer for smooth non-blocking streaming."""
         with self._lock:
             if not self.buffer_queue:

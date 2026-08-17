@@ -209,10 +209,10 @@ async def websocket_audio_stream(websocket: WebSocket):
     logger.info("WebSocket audio client connected")
     try:
         while True:
-            pcm_bytes = audio_capturer.capture_pcm_chunk(2048)
+            pcm_bytes = audio_capturer.capture_pcm_chunk()
             if pcm_bytes:
                 await websocket.send_bytes(pcm_bytes)
-            await asyncio.sleep(0.02)
+            await asyncio.sleep(0.01)
     except (WebSocketDisconnect, RuntimeError):
         logger.info("WebSocket audio client disconnected")
     except Exception as e:
