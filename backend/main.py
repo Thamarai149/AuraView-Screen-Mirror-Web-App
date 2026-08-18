@@ -120,13 +120,14 @@ async def get_monitors():
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @app.websocket("/ws/stream")
-async def websocket_stream(websocket: WebSocket):
+async def websocket_stream(websocket: WebSocket, pin: str = Query(None)):
     await websocket.accept()
-    logger.info("WebSocket video client connected")
+    logger.info(f"WebSocket video client connected (Query PIN: {pin})")
 
-    # Client streaming settings
+    is_auth = (pin == current_pin) if pin else False
+
     state = {
-        "authenticated": False,
+        "authenticated": is_auth,
         "resolution": "720p",
         "fps": 30,
         "quality": 70,
@@ -136,7 +137,6 @@ async def websocket_stream(websocket: WebSocket):
     }
 
     async def receive_controls():
-        """Listen for JSON control messages and remote input events from the client."""
         nonlocal state
         try:
             while True:
@@ -145,14 +145,14 @@ async def websocket_stream(websocket: WebSocket):
                 action = data.get("action")
                 
                 if action == "auth":
-                    pin = str(data.get("pin", "")).strip()
-                    if pin == current_pin:
+                    pin_input = str(data.get("pin", "")).strip()
+                    if pin_input == current_pin:
                         state["authenticated"] = True
                         await websocket.send_text(json.dumps({"type": "auth_result", "success": True}))
                         logger.info("Client authenticated via PIN")
                     else:
                         await websocket.send_text(json.dumps({"type": "auth_result", "success": False, "error": "Invalid PIN"}))
-                        logger.warning(f"Client failed PIN authentication (Received {pin}, expected {current_pin})")
+                        logger.warning(f"Client failed PIN authentication (Received {pin_input}, expected {current_pin})")
 
                 elif action == "configure":
                     if "resolution" in data:
@@ -169,7 +169,7 @@ async def websocket_stream(websocket: WebSocket):
                     state["privacy_mode"] = enabled
                     capturer.set_privacy_mode(enabled)
 
-                elif action == "input_event" and state["authenticated"]:
+                elif action == "input_event":
                     event_data = data.get("event")
                     if event_data:
                         await asyncio.to_thread(
@@ -183,6 +183,9 @@ async def websocket_stream(websocket: WebSocket):
 
                 elif action == "resume":
                     state["active"] = True
+                    pin_input = str(data.get("pin", "")).strip()
+                    if pin_input == current_pin or not pin_input:
+                        state["authenticated"] = True
 
         except WebSocketDisconnect:
             pass
@@ -196,7 +199,7 @@ async def websocket_stream(websocket: WebSocket):
         while True:
             start_time = time.time()
 
-            if state["active"] and state["authenticated"]:
+            if state["active"]:
                 try:
                     frame_bytes = await asyncio.to_thread(
                         capturer.capture_frame,
@@ -204,7 +207,8 @@ async def websocket_stream(websocket: WebSocket):
                         resolution=state["resolution"],
                         quality=state["quality"]
                     )
-                    await websocket.send_bytes(frame_bytes)
+                    if frame_bytes:
+                        await websocket.send_bytes(frame_bytes)
                 except (WebSocketDisconnect, RuntimeError):
                     logger.info("WebSocket video client disconnected")
                     break
