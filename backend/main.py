@@ -8,7 +8,7 @@ import os
 import psutil
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse, HTMLResponse, FileResponse
+from fastapi.responses import StreamingResponse, JSONResponse, HTMLResponse, FileResponse, Response
 from screen_capturer import capturer
 from audio_capturer import audio_capturer
 
@@ -267,13 +267,33 @@ async def websocket_audio_stream(websocket: WebSocket):
     except Exception as e:
         logger.error(f"WebSocket audio stream error: {e}")
 
-def generate_mjpeg_frames(monitor: int, resolution: str, quality: int, fps: int):
-    """Generator for HTTP MJPEG stream response."""
-    delay = 1.0 / fps
+@app.get("/api/snapshot")
+async def snapshot_image(
+    monitor: int = Query(1, ge=0),
+    resolution: str = Query("480p"),
+    quality: int = Query(50, ge=10, le=100)
+):
+    """Returns a single JPEG frame for live thumbnail previews."""
+    try:
+        frame_bytes = await asyncio.to_thread(
+            capturer.capture_frame,
+            monitor_idx=monitor,
+            resolution=resolution,
+            quality=quality
+        )
+        return Response(content=frame_bytes, media_type="image/jpeg")
+    except Exception as e:
+        logger.error(f"Snapshot error: {e}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+async def generate_mjpeg_frames(monitor: int, resolution: str, quality: int, fps: int):
+    """Async generator for HTTP MJPEG stream response."""
+    delay = 1.0 / max(1, fps)
     while True:
         start_time = time.time()
         try:
-            frame_bytes = capturer.capture_frame(
+            frame_bytes = await asyncio.to_thread(
+                capturer.capture_frame,
                 monitor_idx=monitor,
                 resolution=resolution,
                 quality=quality
@@ -284,10 +304,10 @@ def generate_mjpeg_frames(monitor: int, resolution: str, quality: int, fps: int)
             )
         except Exception as e:
             logger.error(f"MJPEG stream error: {e}")
-            time.sleep(0.5)
+            await asyncio.sleep(0.5)
 
         elapsed = time.time() - start_time
-        time.sleep(max(0.001, delay - elapsed))
+        await asyncio.sleep(max(0.001, delay - elapsed))
 
 @app.get("/api/stream")
 async def mjpeg_stream(

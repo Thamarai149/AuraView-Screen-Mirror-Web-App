@@ -161,13 +161,14 @@ class ScreenCapturer:
         Captures a single desktop frame, resizes it according to resolution,
         compresses it into JPEG format, and returns raw bytes. Bulletproof fallback included.
         """
-        if self.privacy_mode:
-            img = Image.new("RGB", (1280, 720), color=(15, 23, 42))
-            buffer = io.BytesIO()
-            img.save(buffer, format="JPEG", quality=50)
-            return buffer.getvalue()
+        with self._lock:
+            if self.privacy_mode:
+                img = Image.new("RGB", (1280, 720), color=(15, 23, 42))
+                buffer = io.BytesIO()
+                img.save(buffer, format="JPEG", quality=50)
+                return buffer.getvalue()
 
-        sct_img = None
+            sct_img = None
         # Attempt 1: Fast MSS Capture
         try:
             with mss.mss() as sct:

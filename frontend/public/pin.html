@@ -120,7 +120,8 @@
   </div>
 
   <script>
-    const API_BASE = `http://${window.location.hostname}:8000/api`;
+    const host = (window.location.hostname && window.location.hostname !== '') ? window.location.hostname : '127.0.0.1';
+    const API_BASE = `http://${host}:8000/api`;
     let currentPinValue = '';
 
     async function fetchPinInfo() {
@@ -130,14 +131,16 @@
         if (data.status === 'success') {
           currentPinValue = data.pin;
           document.getElementById('pin-display').innerText = data.pin;
-          const hostIp = data.host_ip || window.location.hostname;
+          const hostIp = data.host_ip || host;
           document.getElementById('host-ip').innerText = hostIp;
           document.getElementById('mobile-url').innerText = `http://${hostIp}:5173`;
+          document.getElementById('status-text').innerText = 'Server Active & Synced';
+          document.getElementById('status-text').className = 'text-emerald-400 font-semibold';
         }
       } catch (err) {
         console.warn('Backend API connection error:', err);
-        document.getElementById('status-text').innerText = 'Backend connection issue';
-        document.getElementById('status-text').className = 'text-rose-400';
+        document.getElementById('status-text').innerText = 'Reconnecting to backend (Port 8000)...';
+        document.getElementById('status-text').className = 'text-amber-400';
       }
     }
 
@@ -153,6 +156,8 @@
         if (data.status === 'success') {
           currentPinValue = data.new_pin;
           document.getElementById('pin-display').innerText = data.new_pin;
+          document.getElementById('status-text').innerText = 'New PIN Generated & Synced';
+          document.getElementById('status-text').className = 'text-cyan-400 font-bold';
         }
       } catch (err) {
         alert('Failed to refresh PIN code: ' + err.message);
@@ -160,7 +165,7 @@
         setTimeout(() => {
           btn.disabled = false;
           icon.classList.remove('animate-spin');
-        }, 300);
+        }, 400);
       }
     }
 
@@ -174,9 +179,9 @@
       }, 2000);
     }
 
-    // Initial load & 5s interval polling
+    // Initial load & 3s interval polling
     fetchPinInfo();
-    setInterval(fetchPinInfo, 5000);
+    setInterval(fetchPinInfo, 3000);
   </script>
 </body>
 </html>

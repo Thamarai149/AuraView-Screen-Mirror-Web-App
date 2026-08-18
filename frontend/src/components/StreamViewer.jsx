@@ -16,7 +16,9 @@ export default function StreamViewer({
   onTogglePrivacyMode,
   onStartStream,
   onReconnect,
-  onInputEvent
+  onInputEvent,
+  isMjpegMode = false,
+  mjpegStreamUrl = ''
 }) {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
