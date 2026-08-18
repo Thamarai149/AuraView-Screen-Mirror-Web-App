@@ -25,7 +25,7 @@ class AudioCapturer:
             self.start()
 
     def _get_default_loopback_mic(self):
-        """Dynamically finds the WASAPI loopback microphone for the active default output device (Bluetooth, Speakers, Headphones)."""
+        """Dynamically finds the WASAPI loopback microphone for active output device."""
         if not HAS_SOUNDCARD:
             return None
         try:
@@ -35,7 +35,6 @@ class AudioCapturer:
         except Exception as e:
             logger.debug(f"Failed getting default speaker loopback by ID: {e}")
 
-        # Fallback to any available loopback microphone
         try:
             loopbacks = [m for m in sc.all_microphones(include_loopback=True) if m.isloopback]
             if loopbacks:
@@ -57,23 +56,21 @@ class AudioCapturer:
         self.is_running = False
 
     def _record_loop(self):
-        """Continuously captures system audio from active output (including Bluetooth) into ring buffer."""
+        """Continuously captures system audio from active output into ring buffer safely."""
         chunk_frames = 1024
 
         while self.is_running:
-            mic = self._get_default_loopback_mic()
-            if not mic:
-                logger.warning("No active default audio loopback device found. Retrying in 2 seconds...")
-                time.sleep(2.0)
-                continue
-
-            logger.info(f"Capturing PC sound from active output loopback: {mic.name}")
             try:
+                mic = self._get_default_loopback_mic()
+                if not mic:
+                    time.sleep(2.0)
+                    continue
+
+                logger.info(f"Capturing PC sound from active output loopback: {mic.name}")
                 with mic.recorder(samplerate=self.sample_rate) as recorder:
                     while self.is_running:
                         data_float = recorder.record(numframes=chunk_frames)
                         
-                        # Guarantee 2-channel stereo shape (numframes, 2)
                         if data_float.ndim == 1:
                             data_float = np.column_stack((data_float, data_float))
                         elif data_float.shape[1] == 1:
@@ -81,22 +78,20 @@ class AudioCapturer:
                         elif data_float.shape[1] > 2:
                             data_float = data_float[:, :2]
 
-                        # Convert float32 [-1.0, 1.0] to int16 [-32768, 32767]
                         data_int16 = (np.clip(data_float, -1.0, 1.0) * 32767).astype(np.int16)
                         raw_bytes = data_int16.tobytes()
 
                         with self._lock:
                             self.buffer_queue.append(raw_bytes)
             except Exception as e:
-                logger.warning(f"Audio stream error or output device changed ({e}). Re-detecting default output...")
-                time.sleep(0.5)
+                logger.warning(f"Audio capture stream error or output device changed ({e}). Retrying...")
+                time.sleep(1.0)
 
     def capture_pcm_chunk(self) -> bytes:
         """Pops accumulated PCM bytes from ring buffer, dropping stale chunks for zero latency."""
         with self._lock:
             if not self.buffer_queue:
                 return b''
-            # If queue accumulated stale chunks, drop all except latest 2
             while len(self.buffer_queue) > 2:
                 self.buffer_queue.popleft()
             chunks = []
@@ -106,5 +101,3 @@ class AudioCapturer:
 
 # Global audio capturer instance
 audio_capturer = AudioCapturer()
-
-

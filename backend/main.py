@@ -31,9 +31,27 @@ def get_local_ip():
     except Exception:
         return "127.0.0.1"
 
-# Dynamic 4-Digit Security PIN Manager
-current_pin = str(random.randint(1000, 9999))
-logger.info(f"Initial Security PIN generated: {current_pin}")
+PIN_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "pin.txt"))
+
+def get_or_create_pin():
+    if os.path.exists(PIN_FILE):
+        try:
+            with open(PIN_FILE, "r") as f:
+                pin = f.read().strip()
+                if len(pin) == 4 and pin.isdigit():
+                    return pin
+        except Exception:
+            pass
+    new_pin = str(random.randint(1000, 9999))
+    try:
+        with open(PIN_FILE, "w") as f:
+            f.write(new_pin)
+    except Exception:
+        pass
+    return new_pin
+
+current_pin = get_or_create_pin()
+logger.info(f"Active Security PIN: {current_pin}")
 
 # CORS Configuration
 app.add_middleware(
@@ -72,6 +90,11 @@ async def refresh_pin():
     """Generates a new random 4-digit PIN dynamically."""
     global current_pin
     current_pin = str(random.randint(1000, 9999))
+    try:
+        with open(PIN_FILE, "w") as f:
+            f.write(current_pin)
+    except Exception:
+        pass
     logger.info(f"Security PIN refreshed to: {current_pin}")
     return {
         "status": "success",

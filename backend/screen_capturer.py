@@ -1,30 +1,24 @@
 import io
 import time
 import threading
-# pyrefly: ignore [missing-import]
 import mss
-
-# pyrefly: ignore [missing-import]
 import pyautogui
 
 pyautogui.FAILSAFE = False
 pyautogui.PAUSE = 0.001
 
-# Try importing cv2 and numpy, fallback to PIL if unavailable
 try:
-    # pyrefly: ignore [missing-import]
     import cv2
     import numpy as np
     HAS_OPENCV = True
 except ImportError:
     HAS_OPENCV = False
 
-from PIL import Image
+from PIL import Image, ImageGrab
 
 class ScreenCapturer:
     def __init__(self):
         self._lock = threading.Lock()
-        self.mss_instance = mss.mss()
         self.privacy_mode = False
 
     def set_privacy_mode(self, enabled: bool):
@@ -34,33 +28,47 @@ class ScreenCapturer:
     def get_monitors(self):
         """Returns list of available monitors with metadata."""
         monitors = []
-        with self._lock:
-            for idx, m in enumerate(self.mss_instance.monitors):
-                label = "All Monitors" if idx == 0 else f"Monitor {idx}"
-                monitors.append({
-                    "id": idx,
-                    "name": label,
-                    "left": m["left"],
-                    "top": m["top"],
-                    "width": m["width"],
-                    "height": m["height"]
-                })
+        try:
+            with mss.mss() as sct:
+                for idx, m in enumerate(sct.monitors):
+                    label = "All Monitors" if idx == 0 else f"Monitor {idx}"
+                    monitors.append({
+                        "id": idx,
+                        "name": label,
+                        "left": m["left"],
+                        "top": m["top"],
+                        "width": m["width"],
+                        "height": m["height"]
+                    })
+        except Exception:
+            monitors = [{
+                "id": 1,
+                "name": "Primary Display",
+                "left": 0,
+                "top": 0,
+                "width": 1920,
+                "height": 1080
+            }]
         return monitors
 
     def _get_target_coords(self, monitor_idx: int, x_ratio: float, y_ratio: float):
-        monitors = self.mss_instance.monitors
-        if monitor_idx < 0 or monitor_idx >= len(monitors):
-            monitor_idx = 1 if len(monitors) > 1 else 0
+        try:
+            with mss.mss() as sct:
+                monitors = sct.monitors
+                if monitor_idx < 0 or monitor_idx >= len(monitors):
+                    monitor_idx = 1 if len(monitors) > 1 else 0
 
-        target_monitor = monitors[monitor_idx]
-        left = target_monitor["left"]
-        top = target_monitor["top"]
-        width = target_monitor["width"]
-        height = target_monitor["height"]
+                target_monitor = monitors[monitor_idx]
+                left = target_monitor["left"]
+                top = target_monitor["top"]
+                width = target_monitor["width"]
+                height = target_monitor["height"]
 
-        target_x = left + int(max(0.0, min(1.0, x_ratio)) * width)
-        target_y = top + int(max(0.0, min(1.0, y_ratio)) * height)
-        return target_x, target_y
+                target_x = left + int(max(0.0, min(1.0, x_ratio)) * width)
+                target_y = top + int(max(0.0, min(1.0, y_ratio)) * height)
+                return target_x, target_y
+        except Exception:
+            return int(x_ratio * 1920), int(y_ratio * 1080)
 
     def _map_key(self, key: str) -> str:
         key_map = {
@@ -151,7 +159,7 @@ class ScreenCapturer:
     def capture_frame(self, monitor_idx: int = 1, resolution: str = "720p", quality: int = 70) -> bytes:
         """
         Captures a single desktop frame, resizes it according to resolution,
-        compresses it into JPEG format, and returns raw bytes.
+        compresses it into JPEG format, and returns raw bytes. Bulletproof fallback included.
         """
         if self.privacy_mode:
             img = Image.new("RGB", (1280, 720), color=(15, 23, 42))
@@ -159,20 +167,75 @@ class ScreenCapturer:
             img.save(buffer, format="JPEG", quality=50)
             return buffer.getvalue()
 
-        with self._lock:
-            monitors = self.mss_instance.monitors
-            if monitor_idx < 0 or monitor_idx >= len(monitors):
-                monitor_idx = 1 if len(monitors) > 1 else 0
-            
-            target_monitor = monitors[monitor_idx]
-            sct_img = self.mss_instance.grab(target_monitor)
+        sct_img = None
+        # Attempt 1: Fast MSS Capture
+        try:
+            with mss.mss() as sct:
+                monitors = sct.monitors
+                if monitor_idx < 0 or monitor_idx >= len(monitors):
+                    monitor_idx = 1 if len(monitors) > 1 else 0
+                target_monitor = monitors[monitor_idx]
+                sct_img = sct.grab(target_monitor)
+        except Exception:
+            sct_img = None
 
-        # Fast encoding via OpenCV if present
-        if HAS_OPENCV:
-            img_np = np.frombuffer(sct_img.bgra, dtype=np.uint8).reshape((sct_img.height, sct_img.width, 4))
-            bgr_frame = cv2.cvtColor(img_np, cv2.COLOR_BGRA2BGR)
+        # OpenCV fast path if MSS succeeded
+        if sct_img is not None and HAS_OPENCV:
+            try:
+                img_np = np.frombuffer(sct_img.bgra, dtype=np.uint8).reshape((sct_img.height, sct_img.width, 4))
+                bgr_frame = cv2.cvtColor(img_np, cv2.COLOR_BGRA2BGR)
 
-            orig_h, orig_w = bgr_frame.shape[0], bgr_frame.shape[1]
+                orig_h, orig_w = bgr_frame.shape[0], bgr_frame.shape[1]
+                target_height = None
+                if resolution == "480p":
+                    target_height = 480
+                elif resolution == "720p":
+                    target_height = 720
+                elif resolution == "1080p":
+                    target_height = 1080
+
+                if target_height and orig_h > target_height:
+                    aspect_ratio = orig_w / orig_h
+                    new_w = int(target_height * aspect_ratio)
+                    new_h = target_height
+                    bgr_frame = cv2.resize(bgr_frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), max(10, min(100, quality))]
+                success, jpeg_buffer = cv2.imencode('.jpg', bgr_frame, encode_param)
+                if success:
+                    return jpeg_buffer.tobytes()
+            except Exception:
+                pass
+
+        # Attempt 2: PIL fallback if MSS succeeded
+        if sct_img is not None:
+            try:
+                img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
+                orig_w, orig_h = img.size
+                target_height = None
+                if resolution == "480p":
+                    target_height = 480
+                elif resolution == "720p":
+                    target_height = 720
+                elif resolution == "1080p":
+                    target_height = 1080
+
+                if target_height and orig_h > target_height:
+                    aspect_ratio = orig_w / orig_h
+                    new_w = int(target_height * aspect_ratio)
+                    new_h = target_height
+                    img = img.resize((new_w, new_h), Image.Resampling.BILINEAR)
+
+                buffer = io.BytesIO()
+                img.save(buffer, format="JPEG", quality=max(10, min(100, quality)), optimize=False)
+                return buffer.getvalue()
+            except Exception:
+                pass
+
+        # Attempt 3: PIL ImageGrab direct fallback
+        try:
+            img = ImageGrab.grab()
+            orig_w, orig_h = img.size
             target_height = None
             if resolution == "480p":
                 target_height = 480
@@ -185,34 +248,19 @@ class ScreenCapturer:
                 aspect_ratio = orig_w / orig_h
                 new_w = int(target_height * aspect_ratio)
                 new_h = target_height
-                bgr_frame = cv2.resize(bgr_frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+                img = img.resize((new_w, new_h), Image.Resampling.BILINEAR)
 
-            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), max(10, min(100, quality))]
-            success, jpeg_buffer = cv2.imencode('.jpg', bgr_frame, encode_param)
-            if success:
-                return jpeg_buffer.tobytes()
+            buffer = io.BytesIO()
+            img.save(buffer, format="JPEG", quality=max(10, min(100, quality)), optimize=False)
+            return buffer.getvalue()
+        except Exception:
+            pass
 
-        # Pure PIL fallback (no numpy or cv2 needed)
-        img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
-        orig_w, orig_h = img.size
-        target_height = None
-        if resolution == "480p":
-            target_height = 480
-        elif resolution == "720p":
-            target_height = 720
-        elif resolution == "1080p":
-            target_height = 1080
-
-        if target_height and orig_h > target_height:
-            aspect_ratio = orig_w / orig_h
-            new_w = int(target_height * aspect_ratio)
-            new_h = target_height
-            img = img.resize((new_w, new_h), Image.Resampling.BILINEAR)
-
+        # Attempt 4: Fallback placeholder slate
+        img = Image.new("RGB", (1280, 720), color=(15, 23, 42))
         buffer = io.BytesIO()
-        img.save(buffer, format="JPEG", quality=max(10, min(100, quality)), optimize=False)
+        img.save(buffer, format="JPEG", quality=50)
         return buffer.getvalue()
 
 # Global capturer instance
 capturer = ScreenCapturer()
-
