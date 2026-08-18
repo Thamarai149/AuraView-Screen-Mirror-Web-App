@@ -289,10 +289,35 @@ export default function App() {
     }
   };
 
-  const handleVerifyPin = (pin, callback) => {
+  const handleVerifyPin = async (pin, callback) => {
     authCallbackRef.current = callback;
     sessionStorage.setItem('auraview_pin_code', pin);
-    sendControlMessage({ action: 'auth', pin });
+
+    try {
+      const res = await fetch(`${BACKEND_API_URL}/verify-pin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin })
+      });
+      const data = await res.json();
+      if (res.ok && data.authenticated) {
+        setIsAuthenticated(true);
+        sessionStorage.setItem('auraview_pin_auth', 'true');
+        sendControlMessage({ action: 'auth', pin });
+        if (callback) callback(true);
+      } else {
+        setIsAuthenticated(false);
+        sessionStorage.removeItem('auraview_pin_auth');
+        if (callback) callback(false, data.detail || 'Invalid 4-digit PIN code');
+      }
+    } catch (err) {
+      console.warn("REST API PIN verification failed, attempting WebSocket fallback:", err);
+      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+        socketRef.current.send(JSON.stringify({ action: 'auth', pin }));
+      } else {
+        if (callback) callback(false, 'Unable to connect to backend server');
+      }
+    }
   };
 
   const handlePinRefreshed = (newPin) => {
