@@ -81,6 +81,11 @@ export default function App() {
   const lastFrameTimeRef = useRef(Date.now());
   const reconnectTimerRef = useRef(null);
   const cpuPollRef = useRef(null);
+  // Always-current PIN ref — avoids stale closure bug in WS auth
+  const activePinRef = useRef('----');
+  // Toast debounce: only show connect/disconnect toast once per cycle
+  const disconnectToastShownRef = useRef(false);
+  const connectToastShownRef = useRef(false);
 
   const handleRotate = () => setRotation(prev => (prev + 90) % 360);
 
@@ -88,6 +93,11 @@ export default function App() {
   useEffect(() => {
     saveSettings({ resolution, targetFps, quality, selectedMonitor, fitMode });
   }, [resolution, targetFps, quality, selectedMonitor, fitMode]);
+
+  // ── Sync activePinRef whenever activePin state changes ──
+  useEffect(() => {
+    activePinRef.current = activePin;
+  }, [activePin]);
 
   // ── Fetch initial data (pin + monitors) ──
   const fetchInitialData = useCallback(async () => {
@@ -105,6 +115,7 @@ export default function App() {
       const dataPin = await resPin.json();
       if (dataPin.status === 'success') {
         setActivePin(dataPin.pin);
+        activePinRef.current = dataPin.pin; // immediately sync ref too
       }
     } catch (err) {
       console.warn('Failed to load initial data:', err);
@@ -138,10 +149,18 @@ export default function App() {
 
     ws.onopen = () => {
       setIsConnected(true);
-      toast('Connected to desktop stream server', 'success', 3000);
+      // Only show reconnect toast if we previously showed a disconnect toast
+      if (disconnectToastShownRef.current) {
+        toast('Reconnected to desktop stream server', 'success', 2500);
+        disconnectToastShownRef.current = false;
+      } else if (!connectToastShownRef.current) {
+        toast('Connected to desktop stream server', 'success', 2500);
+        connectToastShownRef.current = true;
+      }
 
-      const savedPin = sessionStorage.getItem('auraview_pin_code') || activePin;
-      if (sessionStorage.getItem('auraview_pin_auth') === 'true') {
+      // Use ref to get latest PIN — avoids stale closure race condition
+      const savedPin = sessionStorage.getItem('auraview_pin_code') || activePinRef.current;
+      if (sessionStorage.getItem('auraview_pin_auth') === 'true' && savedPin && savedPin !== '----') {
         ws.send(JSON.stringify({ action: 'auth', pin: savedPin }));
       }
 
@@ -206,18 +225,22 @@ export default function App() {
 
     ws.onclose = () => {
       setIsConnected(false);
-      toast('Stream connection lost. Reconnecting...', 'warning', 3500);
+      // Only show disconnect toast once per disconnect cycle (not on every retry)
+      if (!disconnectToastShownRef.current) {
+        disconnectToastShownRef.current = true;
+        toast('Stream connection lost. Reconnecting...', 'warning', 3000);
+      }
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = setTimeout(() => connectWebSocket(), 2000);
     };
 
     ws.onerror = () => {
+      // Suppress onerror toasts — onclose always fires after onerror
       setIsConnected(false);
-      toast('WebSocket connection error', 'error', 3000);
     };
 
     socketRef.current = ws;
-  }, [resolution, targetFps, quality, selectedMonitor, activePin, isStreaming]);
+  }, [resolution, targetFps, quality, selectedMonitor, isStreaming]);
 
   // ── Audio stream ──
   const startAudioStream = () => {
