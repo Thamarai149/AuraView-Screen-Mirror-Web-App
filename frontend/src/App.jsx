@@ -82,10 +82,15 @@ export default function App() {
     }
   }, []);
 
+  const reconnectTimerRef = useRef(null);
+
   // Initialize Video WebSocket connection
   const connectWebSocket = useCallback(() => {
-    if (socketRef.current) {
-      socketRef.current.close();
+    if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
     }
 
     const ws = new WebSocket(BACKEND_WS_URL);
@@ -107,6 +112,10 @@ export default function App() {
         quality,
         monitor: selectedMonitor
       }));
+
+      if (isStreaming) {
+        ws.send(JSON.stringify({ action: 'resume' }));
+      }
     };
 
     ws.onmessage = (event) => {
@@ -117,11 +126,17 @@ export default function App() {
             if (msg.success) {
               setIsAuthenticated(true);
               sessionStorage.setItem('auraview_pin_auth', 'true');
-              if (authCallbackRef.current) authCallbackRef.current(true);
+              if (authCallbackRef.current) {
+                authCallbackRef.current(true);
+                authCallbackRef.current = null;
+              }
             } else {
               setIsAuthenticated(false);
               sessionStorage.removeItem('auraview_pin_auth');
-              if (authCallbackRef.current) authCallbackRef.current(false, msg.error);
+              if (authCallbackRef.current) {
+                authCallbackRef.current(false, msg.error);
+                authCallbackRef.current = null;
+              }
             }
           }
         } catch (e) {}
@@ -160,9 +175,12 @@ export default function App() {
     };
 
     ws.onclose = () => {
-      console.warn("WebSocket stream disconnected");
+      console.warn("WebSocket stream disconnected. Retrying connection in 2 seconds...");
       setIsConnected(false);
-      setIsStreaming(false);
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = setTimeout(() => {
+        connectWebSocket();
+      }, 2000);
     };
 
     ws.onerror = (err) => {
@@ -171,7 +189,7 @@ export default function App() {
     };
 
     socketRef.current = ws;
-  }, [resolution, targetFps, quality, selectedMonitor, activePin]);
+  }, [resolution, targetFps, quality, selectedMonitor, activePin, isStreaming]);
 
   // Handle Desktop Audio Web Audio API Player
   const startAudioStream = () => {
