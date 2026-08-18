@@ -285,29 +285,57 @@ export default function StreamViewer({
           : 'w-full max-h-[85vh] bg-slate-950/90 mx-auto'
       } ${fitMode === 'notch' ? 'notch-container' : ''}`}
     >
-      {/* Canvas rendering area */}
-      <canvas 
-        ref={canvasRef}
-        onClick={handleCanvasClick}
-        onMouseDown={handleCanvasMouseDown}
-        onMouseUp={handleCanvasMouseUp}
-        onDoubleClick={handleCanvasDoubleClick}
-        onContextMenu={handleCanvasContextMenu}
-        onMouseMove={handleCanvasMouseMove}
-        onWheel={handleCanvasWheel}
-        onTouchStart={handleCanvasClick}
-        style={{
-          transform: isRotatedVertical 
-            ? `rotate(${rotation}deg) scale(${normalAspect})` 
-            : rotation 
-            ? `rotate(${rotation}deg)` 
-            : 'none',
-          transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-        }}
-        className={`${getFitModeClass()} ${
-          isStreaming && imageLoaded ? 'block' : 'hidden'
-        } ${isRemoteControlActive ? 'cursor-crosshair' : 'cursor-default'}`}
-      />
+      {/* MJPEG Image Stream (Fallback Mode) */}
+      {isMjpegMode ? (
+        <img
+          src={isStreaming ? mjpegStreamUrl : ''}
+          alt="Desktop Stream"
+          onClick={handleCanvasClick}
+          onMouseDown={handleCanvasMouseDown}
+          onMouseUp={handleCanvasMouseUp}
+          onDoubleClick={handleCanvasDoubleClick}
+          onContextMenu={handleCanvasContextMenu}
+          onMouseMove={handleCanvasMouseMove}
+          onWheel={handleCanvasWheel}
+          onTouchStart={handleCanvasClick}
+          onLoad={() => setImageLoaded(true)}
+          style={{
+            transform: isRotatedVertical 
+              ? `rotate(${rotation}deg) scale(${normalAspect})` 
+              : rotation 
+              ? `rotate(${rotation}deg)` 
+              : 'none',
+            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+          }}
+          className={`${getFitModeClass()} ${
+            isStreaming ? 'block' : 'hidden'
+          } ${isRemoteControlActive ? 'cursor-crosshair' : 'cursor-default'}`}
+        />
+      ) : (
+        /* Canvas rendering area (WebSocket Mode) */
+        <canvas 
+          ref={canvasRef}
+          onClick={handleCanvasClick}
+          onMouseDown={handleCanvasMouseDown}
+          onMouseUp={handleCanvasMouseUp}
+          onDoubleClick={handleCanvasDoubleClick}
+          onContextMenu={handleCanvasContextMenu}
+          onMouseMove={handleCanvasMouseMove}
+          onWheel={handleCanvasWheel}
+          onTouchStart={handleCanvasClick}
+          style={{
+            transform: isRotatedVertical 
+              ? `rotate(${rotation}deg) scale(${normalAspect})` 
+              : rotation 
+              ? `rotate(${rotation}deg)` 
+              : 'none',
+            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+          }}
+          className={`${getFitModeClass()} ${
+            isStreaming && imageLoaded ? 'block' : 'hidden'
+          } ${isRemoteControlActive ? 'cursor-crosshair' : 'cursor-default'}`}
+        />
+      )}
 
       {/* Live Stream Controls Overlay (Top Badges & Actions) */}
       {isStreaming && imageLoaded && (

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Lock, ArrowRight, AlertCircle, RefreshCw } from 'lucide-react';
+import { Lock, ArrowRight, AlertCircle, RefreshCw, KeyRound, ExternalLink } from 'lucide-react';
 
-export default function PinLockModal({ onVerifyPin }) {
+export default function PinLockModal({ onVerifyPin, activePin }) {
   const [pin, setPin] = useState(['', '', '', '']);
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,6 +72,15 @@ export default function PinLockModal({ onVerifyPin }) {
     });
   };
 
+  const handleAutoFill = () => {
+    if (activePin && activePin.length === 4 && activePin !== '----') {
+      const digits = activePin.split('');
+      setPin(digits);
+      setErrorMsg('');
+      submitPin(activePin);
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     submitPin(pin.join(''));
@@ -123,6 +132,23 @@ export default function PinLockModal({ onVerifyPin }) {
             </div>
           )}
 
+          {/* Quick Host PIN Auto-Fill Helper if known */}
+          {activePin && activePin !== '----' && (
+            <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-900/60 border border-cyan-500/20 text-xs">
+              <span className="text-slate-400 flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Host PIN: <strong className="text-cyan-300 font-mono tracking-wider">{activePin}</strong></span>
+              </span>
+              <button
+                type="button"
+                onClick={handleAutoFill}
+                className="px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-semibold text-[11px] transition-colors cursor-pointer"
+              >
+                Auto-Unlock
+              </button>
+            </div>
+          )}
+
           {/* Clean Action Buttons */}
           <div className="flex items-center space-x-3 pt-2">
             <button
@@ -152,6 +178,19 @@ export default function PinLockModal({ onVerifyPin }) {
                 </>
               )}
             </button>
+          </div>
+
+          {/* Link to Standalone PIN Generator Page */}
+          <div className="text-center pt-2">
+            <a
+              href="/pin.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-cyan-300 transition-colors"
+            >
+              <span>Open Standalone PIN Generator</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
         </form>
 

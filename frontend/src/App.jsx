@@ -8,9 +8,10 @@ import ToastNotifier, { toast } from './components/ToastNotifier';
 import ConnectionInfoPanel from './components/ConnectionInfoPanel';
 import AudioVisualizer from './components/AudioVisualizer';
 
-const BACKEND_WS_URL = `ws://${window.location.hostname}:8000/ws/stream`;
-const BACKEND_AUDIO_WS_URL = `ws://${window.location.hostname}:8000/ws/audio`;
-const BACKEND_API_URL = `http://${window.location.hostname}:8000/api`;
+const host = (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== '') ? window.location.hostname : '127.0.0.1';
+const BACKEND_WS_URL = `ws://${host}:8000/ws/stream`;
+const BACKEND_AUDIO_WS_URL = `ws://${host}:8000/ws/audio`;
+const BACKEND_API_URL = `http://${host}:8000/api`;
 
 // ─── localStorage helpers ───────────────────────────────────────────────────
 const SETTINGS_KEY = 'auraview_settings_v2';
@@ -363,7 +364,9 @@ export default function App() {
         setIsAuthenticated(true);
         sessionStorage.setItem('auraview_pin_auth', 'true');
         sendControlMessage({ action: 'auth', pin });
-        toast('Access granted! Stream unlocked.', 'success', 3000);
+        setIsStreaming(true);
+        sendControlMessage({ action: 'resume', pin });
+        toast('Access granted! Mirroring started.', 'success', 3000);
         if (callback) callback(true);
       } else {
         setIsAuthenticated(false);
@@ -473,7 +476,7 @@ export default function App() {
 
       {/* PIN Security Modal Lock */}
       {!isAuthenticated && (
-        <PinLockModal onVerifyPin={handleVerifyPin} />
+        <PinLockModal onVerifyPin={handleVerifyPin} activePin={activePin} />
       )}
 
       <Header isStreaming={isStreaming} isConnected={isConnected} />
