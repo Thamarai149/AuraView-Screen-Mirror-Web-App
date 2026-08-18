@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, RefreshCw, Smartphone, Wifi, KeyRound, Copy, Check } from 'lucide-react';
 
-const BACKEND_API_URL = `http://${window.location.hostname}:8000/api`;
+const host = (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== '') ? window.location.hostname : '127.0.0.1';
+const BACKEND_API_URL = `http://${host}:8000/api`;
 
 export default function SecurityPinGuide({ activePin, onPinRefreshed }) {
   const [currentPin, setCurrentPin] = useState(activePin || '----');
