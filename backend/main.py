@@ -5,6 +5,7 @@ import random
 import socket
 import time
 import os
+import psutil
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse, HTMLResponse, FileResponse
@@ -118,6 +119,27 @@ async def get_monitors():
     except Exception as e:
         logger.error(f"Error fetching monitors: {e}")
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+@app.get("/api/system-stats")
+async def get_system_stats():
+    """Returns real-time CPU, memory usage and system uptime for diagnostics."""
+    try:
+        cpu_percent = psutil.cpu_percent(interval=None)
+        mem = psutil.virtual_memory()
+        boot_time = psutil.boot_time()
+        uptime_sec = int(time.time() - boot_time)
+        return {
+            "status": "success",
+            "cpu_percent": cpu_percent,
+            "memory_percent": mem.percent,
+            "memory_used_mb": round(mem.used / 1024 / 1024, 1),
+            "memory_total_mb": round(mem.total / 1024 / 1024, 1),
+            "uptime_sec": uptime_sec
+        }
+    except Exception as e:
+        logger.error(f"Error fetching system stats: {e}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
 
 @app.websocket("/ws/stream")
 async def websocket_stream(websocket: WebSocket, pin: str = Query(None)):
