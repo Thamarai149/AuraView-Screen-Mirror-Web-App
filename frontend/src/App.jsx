@@ -307,9 +307,6 @@ export default function App() {
     if (!isStreaming) {
       setIsStreaming(true);
       sendControlMessage({ action: 'resume' });
-      if (!isAudioEnabled) {
-        startAudioStream();
-      }
     } else {
       setIsStreaming(false);
       sendControlMessage({ action: 'pause' });
@@ -319,9 +316,6 @@ export default function App() {
   const handleStartStream = () => {
     setIsStreaming(true);
     sendControlMessage({ action: 'resume' });
-    if (!isAudioEnabled) {
-      startAudioStream();
-    }
   };
 
   const handleTogglePrivacyMode = () => {

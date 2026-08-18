@@ -237,6 +237,14 @@ export default function StreamViewer({
   };
 
   // Dynamic canvas CSS fitting based on fitMode
+  const [isExpandedView, setIsExpandedView] = useState(false);
+
+  const isRotatedVertical = rotation === 90 || rotation === 270;
+  const normalAspect = (frameDimensions.width && frameDimensions.height) 
+    ? (frameDimensions.width / frameDimensions.height) 
+    : (16 / 9);
+  const rotatedAspect = isRotatedVertical ? (1 / normalAspect) : normalAspect;
+
   const getFitModeClass = () => {
     switch (fitMode) {
       case 'best_fit':
@@ -268,8 +276,11 @@ export default function StreamViewer({
   return (
     <div 
       ref={containerRef}
-      className={`relative group glass-panel rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 ${
-        isFullscreen ? 'w-full h-full flex items-center justify-center bg-black rounded-none border-none' : 'w-full aspect-video bg-slate-950/90'
+      style={!(isFullscreen || isExpandedView) ? { aspectRatio: `${rotatedAspect}` } : {}}
+      className={`relative group glass-panel rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 flex items-center justify-center ${
+        isFullscreen || isExpandedView 
+          ? 'fixed inset-0 z-50 w-screen h-screen bg-black rounded-none border-none' 
+          : 'w-full max-h-[85vh] bg-slate-950/90 mx-auto'
       } ${fitMode === 'notch' ? 'notch-container' : ''}`}
     >
       {/* Canvas rendering area */}
@@ -284,7 +295,11 @@ export default function StreamViewer({
         onWheel={handleCanvasWheel}
         onTouchStart={handleCanvasClick}
         style={{
-          transform: rotation ? `rotate(${rotation}deg)` : 'none',
+          transform: isRotatedVertical 
+            ? `rotate(${rotation}deg) scale(${normalAspect})` 
+            : rotation 
+            ? `rotate(${rotation}deg)` 
+            : 'none',
           transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
         }}
         className={`${getFitModeClass()} ${
@@ -309,20 +324,30 @@ export default function StreamViewer({
             {isRemoteControlActive && (
               <span className="flex items-center space-x-1 px-3 py-1 rounded-full bg-cyan-500/20 backdrop-blur-md border border-cyan-500/40 text-xs font-semibold text-cyan-300 animate-pulse">
                 <MousePointer className="w-3 h-3" />
-                <span>REMOTE CONTROL ACTIVE</span>
+                <span className="hidden sm:inline">REMOTE CONTROL</span>
               </span>
             )}
 
             {isPrivacyModeActive && (
               <span className="flex items-center space-x-1 px-3 py-1 rounded-full bg-amber-500/20 backdrop-blur-md border border-amber-500/40 text-xs font-semibold text-amber-300">
                 <ShieldAlert className="w-3 h-3" />
-                <span>PRIVACY FROZEN</span>
+                <span className="hidden sm:inline">PRIVACY FROZEN</span>
               </span>
             )}
           </div>
 
           {/* Top Right Quick Actions */}
           <div className="absolute top-4 right-4 flex items-center space-x-2 z-20 transition-opacity duration-200 group-hover:opacity-100 opacity-70 hover:opacity-100">
+            {/* Mobile Expanded View Toggle */}
+            <button
+              onClick={() => setIsExpandedView(prev => !prev)}
+              title={isExpandedView ? "Exit Expanded View" : "Full Screen View (Mobile Fit)"}
+              className="p-2.5 rounded-xl bg-slate-900/80 hover:bg-cyan-600/80 text-cyan-400 hover:text-white backdrop-blur-md border border-slate-700/60 transition-all duration-200 shadow-lg cursor-pointer flex items-center space-x-1"
+            >
+              <Smartphone className="w-4 h-4" />
+              <span className="text-[10px] font-bold font-mono">{isExpandedView ? "EXIT" : "FULL"}</span>
+            </button>
+
             {/* Quick Rotate Button */}
             <button
               onClick={onRotate}
@@ -339,7 +364,7 @@ export default function StreamViewer({
               title={`Aspect Ratio Mode: ${fitMode.toUpperCase()}`}
               className="p-2.5 rounded-xl bg-slate-900/80 hover:bg-cyan-600/80 text-slate-200 hover:text-white backdrop-blur-md border border-slate-700/60 transition-all duration-200 shadow-lg cursor-pointer flex items-center space-x-1"
             >
-              {fitMode === 'notch' ? <Smartphone className="w-4 h-4 text-emerald-400" /> : <Ratio className="w-4 h-4 text-cyan-400" />}
+              <Ratio className="w-4 h-4 text-cyan-400" />
               <span className="text-[10px] font-bold text-cyan-300 uppercase font-mono">{fitMode}</span>
             </button>
 

@@ -108,7 +108,7 @@ async def websocket_stream(websocket: WebSocket):
         "fps": 30,
         "quality": 70,
         "monitor": 1,
-        "active": True,
+        "active": False,
         "privacy_mode": False
     }
 
